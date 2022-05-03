@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May  1 22:19:52 2022
+
+@author: chaoliang
+"""
+
+## dynamical programming approach 
+
+## let x_n be the average of the tosses for steps <= n
+## then if x_n>=3.5, we proceed, otherwise stop here
+## using the dynamical programming method, we work backwardly
+## and record the number of steps
+## the state space of x is [1, 3.5], we need to discretize it 
+import numpy as np
+import math 
+from scipy.interpolate import interp1d
+
+
+
+def gettossnumberandtossrewarddp(N, K):
+    
+    x = np.linspace(1, K, 601, endpoint=True)
+
+    ## initialize the reward and expected toss
+    reward = [0 for i in range(len(x))]
+    bepoint = [(1+K)/2]
+    for j in range(len(x)):
+        reward[j] = x[j]
+
+    number = [0 for i in range(len(x))]
+    for j in range(len(x)):
+        number[j] = 0
+        
+    for i in range(1, N):
+        currentstep = N - i
+        f = interp1d(x, reward)
+        g = interp1d(x, number)
+        for j in range(len(x)):
+            currentward = x[j]
+            rewardj = 0
+            numberj = 1
+            for k in range(1, K+1):
+                rewardcasej = (currentward * currentstep + k)/(currentstep+1)     
+                rewardj = rewardj + f(rewardcasej)/K
+                numberj = numberj + g(rewardcasej)/K
+            if (rewardj < currentward):
+                number[j] = 0
+                reward[j] = currentward
+            else:
+                number[j] = numberj
+                reward[j] = rewardj 
+        idx = 0
+        f = interp1d(x, reward)
+        
+        while f(x[idx]) - x[idx]>1E-10:
+            idx += 1      
+        bepoint.append(x[idx])
+        
+                
+    f = interp1d(x, reward)
+    g = interp1d(x, number)
+    
+    reward0 = 0
+    number0 = 1
+
+    for i in range(k):
+        reward0 += f(i+1)/k
+        number0 += g(i+1)/k
+    return number0, reward0 , bepoint
+
+N = 1000
+K = 6
+rewards = []
+expectedsteps = []
+
+Ns = []
+for i in range(1, 10):
+    Ni = math.floor(i/10*N)
+    tossnumberN, rewardN, be = gettossnumberandtossrewarddp(Ni, K)
+    Ns.append(Ni)
+    rewards.append(rewardN)
+    expectedsteps.append(tossnumberN)
+    # expectedstepsoversqrtT.append(tossnumberN/math.sqrt(Ni))
+    # expectedstepsoverT.append(tossnumberN/Ni)
+
+ 
+import matplotlib.pyplot as plt
+# plt.plot(Ns, rewards)
+expectedstepsoversqrtT = []
+expectedstepsoverT = []
+for i in range(1, 10):
+    Ni = math.floor(i/10*N)
+    expectedstepsoversqrtT.append(tossnumberN/math.sqrt(Ni))
+    expectedstepsoverT.append(tossnumberN/Ni)
+# plt.plot(Ns, expectedsteps, 'r', Ns, expectedstepsoversqrtT, 'g-', Ns, expectedstepsoverT, 'y-')
+
+fig, ax = plt.subplots()
+
+line1, = ax.plot(Ns, expectedsteps, label="expected time to exercise/expiry v_N ", linestyle='--')
+line2, = ax.plot(Ns, expectedstepsoversqrtT, label=" v_N/sqrt(N) ", linestyle='--')
+line3, = ax.plot(Ns, expectedstepsoverT, label=" v_N/N ", linestyle='--')
+
+first_legend = ax.legend(handles=[line1], loc='center right')
+
+# Add the legend manually to the Axes.
+ax.add_artist(first_legend)
+
+# Create another legend for the second line.
+second_legend = ax.legend(handles=[line2], loc='upper left')
+
+ax.add_artist(second_legend)
+
+third_legend = ax.legend(handles=[line3], loc='upper right')
+
+ax.add_artist(third_legend)
+
+plt.show()
+
+# tossnumberN, rewardN, be = gettossnumberandtossrewarddp(N, K)
+
+# # we next seek the analytical break-even point
+# tb = []
+# tbinf = []
+# mean = (1+K)/2
+# sigma = math.sqrt((K*K-1)/12)
+# tn = []
+# for i in range(N):
+#     n = i+1
+#     tn.append(n)
+#     bn = mean
+#     if n<N:
+#         noverN = n/N
+#         bn = mean + sigma * 2/(1-noverN)/math.sqrt(2*math.pi) * (math.acos(math.sqrt(noverN)) - math.sqrt(noverN*(1-noverN)))/math.sqrt(n)    
+#     tb.append(bn)
+#     tbinf.append(mean + sigma * math.sqrt(math.pi/2/n))
+
+# import matplotlib.pyplot as plt
+
+# fig, ax = plt.subplots()
+
+# line1, = ax.plot(tn, be[::-1], label="optimal boundary for discrete problem, for N=1E3 ", linestyle='--')
+# line2, = ax.plot(tn, tb, label=" continuous, for N = 1E3 ", linestyle='--')
+# line3, = ax.plot(tn, tbinf, label=" continuous, for N = infty ", linestyle='--')
+
+# first_legend = ax.legend(handles=[line1], loc='center right')
+
+# # Add the legend manually to the Axes.
+# ax.add_artist(first_legend)
+
+# # Create another legend for the second line.
+# second_legend = ax.legend(handles=[line2], loc='upper left')
+
+# ax.add_artist(second_legend)
+
+# third_legend = ax.legend(handles=[line3], loc='upper right')
+
+# ax.add_artist(third_legend)
+
+# plt.show()
+
+# # plt.subplot(1, 3, 1)
+# # plt.plot(tossnumberN, 'g-')    
+# # plt.subplot(1, 3, 2)
+# # plt.plot(rewardN, 'r-')   
+
+# # plt.subplot(1, 3, 3)
+# # # plt.plot(be[::-1], 'r-')  
+
+# # ## we next plot the analytical boundary 
+
+# # tb = [] 
+# # tbinf = []
+# # mean = (K+1.0)/2
+# # std = math.sqrt((K*K-1.0)/12)
+# # for i in range(N):
+# #     n = i+1
+# #     bn = mean
+# #     if n<N:
+# #         noverN = n/N
+# #         bn = mean + std * 2/(1-noverN)/math.sqrt(2*math.pi) * (math.acos(math.sqrt(noverN)) - math.sqrt(noverN*(1-noverN)))/math.sqrt(n)    
+# #     tb.append(bn)
+# #     tbinf.append(mean + std * math.sqrt(math.pi/2/n))
+
+# # plt.plot(tb, 'r-', be[::-1], 'g-', tbinf, 'y-') 
+    
+
+# NN = 100
+# tossnumberaverage = []
+# tossrewardaverage = []
+# for i in range(1,10):
+#     N = math.floor(i/10 * NN)
+#     tossnumberN, rewardN, be = gettossnumberandtossrewarddp(N, K)
+#     tossnumberaverage.append(tossnumberN)
+#     tossrewardaverage.append(rewardN)
+    
+# import matplotlib.pyplot as plt
+
+# plt.subplot(1, 2, 1)
+# plt.plot(tossnumberaverage, 'g-')    
+# plt.subplot(1, 2, 2)
+# plt.plot(tossrewardaverage, 'r-')   
