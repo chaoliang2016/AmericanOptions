@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May  2 09:16:47 2022
+
+@author: chaoliang
+"""
+ 
+
+import numpy as np
+import math 
+from scipy.interpolate import interp1d
+from scipy.stats import norm 
+import matplotlib.pyplot as plt
+# def thomasalgorithmfreeboundary(a, d): 
+#     ## the Thomas algorithm to solve the system of equations
+#     ## (1 )
+
+def gettossnumberandtossrewardAttIsOneBrownianMotion(T, N, t):
+    
+    dt = (T-t) / N
+    xN = math.floor(2 * math.sqrt(N))
+    # space of w_t
+    x = np.linspace(-4 * math.sqrt(T),  math.sqrt(math.pi / 2 * T) , xN, endpoint=True)
+
+    ## initialize the reward and expected toss
+    reward = [0 for i in range(len(x))]
+    rewardold = [0 for i in range(len(x))]
+    bepoint = []
+    
+    number = [0 for i in range(len(x))]
+    numberold = [0 for i in range(len(x))]
+    for j in range(len(x)):
+        reward[j] = x[j]/T
+        rewardold[j] = x[j]/T
+        number[j] = 0
+        numberold[j] = 0
+    
+    # N = 100 ## discretization of T
+    
+    dx = x[1] - x[0]
+    a = dt / dx/dx
+    searchstartidx = xN-1
+    
+    for i in range(1, N+1):
+        currenttime = t + (N - i)*dt
+        wt = math.sqrt(math.pi/2*currenttime) # this is the upper bound of the exercise bdy
+        for j in range(1,len(x)-1):
+            wj = x[j]
+            if wj < wt: 
+                ## we need to use PDE
+
+                coef0 = 1-a
+                coefp = 0.5 * a
+                coefn = 0.5 * a
+                rewardj = coef0 * rewardold[j] + coefp * rewardold[j+1] + coefn * rewardold[j-1]
+                if (rewardj > wj/currenttime):
+                    reward[j] = rewardj
+                    number[j] = dt + coef0 * numberold[j] + coefp * numberold[j+1] + coefn * numberold[j-1]
+                else:
+                    reward[j] = wj/currenttime
+                    number[j] = 0
+            else:
+                reward[j] = wj/currenttime
+                number[j] = 0
+        reward[len(x)-1] = x[len(x)-1]/currenttime
+        reward[0] = 2 * reward[1] - reward[2]
+        number[len(x)-1] = 0
+        number[0] = 2 * number[1] - number[2]
+        ## refresh
+        for j in range(len(x)):
+            rewardold[j] = reward[j]
+            numberold[j] = number[j]
+        ## next find the optimal boundary
+        
+        # f = interp1d(x, reward)
+        idx = 0
+        while reward[idx] - x[idx]/currenttime>1E-10:
+            idx += 1      
+        bepoint.append(x[idx])
+        
+        
+    return x, reward, number, bepoint
+
+N = 100
+smallt = 1
+y = 0
+T = []
+nToverSqrtT = []
+TT = 10000
+nT = []
+for i in range(10):
+    Ti = math.floor(i/10 * TT + 1)
+    xgrid, reward, number, be = gettossnumberandtossrewardAttIsOneBrownianMotion(Ti, N, smallt)
+    f = interp1d(xgrid, number)
+    Ni = f(y * smallt)
+    nT.append(Ni)
+    T.append(Ti)
+    nToverSqrtT.append(Ni/Ti)
+
+# plt.plot(T, nT, 'r-', T, nToverSqrtT, 'g-')
+
+# fig, ax = plt.subplots()
+
+# line1, = ax.plot(T, nT, label="v(1, 0), for various T ", linestyle='--')
+# line2, = ax.plot(T, nToverSqrtT, label=" v(1, 0)/sqrt(T), for various T ", linestyle='--')
+
+# first_legend = ax.legend(handles=[line1], loc='center left')
+
+# # Add the legend manually to the Axes.
+# ax.add_artist(first_legend)
+
+# # Create another legend for the second line.
+# second_legend = ax.legend(handles=[line2], loc='upper left')
+
+# ax.add_artist(second_legend)
+
+# plt.show()
+
+T = 100
+N = 100000
+smallt = 20
+xgrid, reward, number, be = gettossnumberandtossrewardAttIsOneBrownianMotion(T, N, smallt)
+import matplotlib.pyplot as plt
+
+bereverse = be[::-1]
+tb = []
+tbinf = []
+tbnumeric = []
+tt = []
+dt = (T-smallt) / N
+for i in range(N):
+    ti = (i+1) * dt + smallt
+    tt.append(ti)
+    bn = 0
+    if ti<T:
+        noverN = ti/T
+        bn = 2/(1-noverN)/math.sqrt(2*math.pi) * (math.acos(math.sqrt(noverN)) - math.sqrt(noverN*(1-noverN)))/math.sqrt(ti)    
+    tb.append(bn)
+    tbinf.append(math.sqrt(math.pi/2/ti))
+    tbnumeric.append(bereverse[i]/ti)
+
+fig, ax = plt.subplots()
+line1, = ax.plot(tt, tbnumeric, label="numerical boundary, T=1E2", linestyle='--')
+line2, = ax.plot(tt, tb , label="analytical boundary, T=1E2", linestyle='--' )
+line3, = ax.plot(tt, tbinf, label="T = infty", linestyle='--')
+
+# Create a legend for the first line.
+first_legend = ax.legend(handles=[line1], loc='upper right')
+
+# Add the legend manually to the Axes.
+ax.add_artist(first_legend)
+
+# Create another legend for the second line.
+second_legend = ax.legend(handles=[line2], loc='center right')
+third_legend = ax.legend(handles=[line3], loc='upper left')
+
+ax.add_artist(second_legend)
+
+ax.add_artist(third_legend)
+
+plt.show()
+
+# ## next plot the expected value
+
+
+
+# xN = math.floor(2 * math.sqrt(N))
+
+# # xgrid = np.linspace(-4 * math.sqrt(T),  math.sqrt(math.pi / 2 * T) , xN, endpoint=True)
+# ygrid = []
+
+
+# noverN = smallt/T
+# u1y = []
+# b1 = 2/(1-noverN)/math.sqrt(2*math.pi) * (math.acos(math.sqrt(noverN)) - math.sqrt(noverN*(1-noverN)))/math.sqrt(smallt)  
+# aux0 = math.sqrt(math.pi/2/smallt)*math.exp(-math.pi/4)/norm.cdf(math.sqrt(math.pi/2)) 
+# idx = 0
+# while xgrid[idx] < b1 * math.sqrt(smallt)+5.5:
+#        idx+=1
+       
+# idxlower = 0
+# while xgrid[idxlower] < -3 * smallt :
+#        idxlower+=1       
+# for i in range(idxlower, idx+1):
+#     xi = xgrid[i]
+#     yi = xi/smallt
+#     ygrid.append(yi)
+
+#     if yi >= b1:
+#         u1y.append(yi)
+#     else:
+#         if yi*math.sqrt(smallt) < -35:
+#             aux = -1/yi/math.sqrt(smallt) * (1-1/yi/yi/smallt)/math.sqrt(2*math.pi)* aux0
+#             u1y.append(aux)
+#         else:
+#             aux = math.exp(smallt/2*yi*yi)*norm.cdf(yi*math.sqrt(smallt)) * aux0
+#             u1y.append(aux)
+
+# fig, ax = plt.subplots()
+
+# line1, = ax.plot(ygrid, reward[idxlower:idx+1], label=" numerical u(t, y), for T = 1E2, t=20 ", linestyle='--')
+# line2, = ax.plot(ygrid, u1y, label=" analytical u(t, y) for T = infty, t=20", linestyle='--')
+
+# first_legend = ax.legend(handles=[line1], loc='center left')
+
+# # Add the legend manually to the Axes.
+# ax.add_artist(first_legend)
+
+# # Create another legend for the second line.
+# second_legend = ax.legend(handles=[line2], loc='upper left')
+
+# ax.add_artist(second_legend)
+
+# plt.show()
+ 
+    
+    
+    
